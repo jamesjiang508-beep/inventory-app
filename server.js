@@ -371,14 +371,38 @@ app.put('/api/other-items/:id', (req, res) => {
     }
 });
 
-// API-11: 删除其它物品
+// API-11: 删除其它物品（级联删除相关使用记录）
 app.delete('/api/other-items/:id', (req, res) => {
     const { id } = req.params;
 
     try {
+        // 先获取物品名称
+        const itemResult = db.exec('SELECT name FROM other_items WHERE id = ?', [id]);
+        if (!itemResult[0] || itemResult[0].values.length === 0) {
+            return res.status(404).json({ success: false, error: '物品不存在' });
+        }
+        const itemName = itemResult[0].values[0][0];
+        
+        // 删除相关的使用记录
+        db.run('DELETE FROM usage_logs WHERE item_type = ? AND other_item_name = ?', ['other', itemName]);
+        
+        // 删除物品
         db.run('DELETE FROM other_items WHERE id = ?', [id]);
         saveDatabase();
-        res.json({ success: true, message: '物品已删除' });
+        res.json({ success: true, message: '物品及相关使用记录已删除' });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// API-12: 删除使用记录
+app.delete('/api/usage/logs/:id', (req, res) => {
+    const { id } = req.params;
+
+    try {
+        db.run('DELETE FROM usage_logs WHERE id = ?', [id]);
+        saveDatabase();
+        res.json({ success: true, message: '使用记录已删除' });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
