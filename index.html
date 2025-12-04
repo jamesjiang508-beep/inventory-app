@@ -191,6 +191,14 @@
                     </div>
 
                     <h2 class="section-title">使用流水</h2>
+                    <div style="margin-bottom:15px;">
+                        <button @click="exportUsageLogs" class="btn-secondary" style="margin-right:10px;">📄 导出记录</button>
+                        <button @click="$refs.importFile.click()" style="margin-right:10px;">📂 导入记录</button>
+                        <input ref="importFile" type="file" accept=".csv" @change="importUsageLogs" style="display:none;">
+                        <span v-if="importStatus" :style="{color: importStatus.type === 'success' ? '#52c41a' : '#ff4d4f', marginLeft: '10px'}">
+                            {{ importStatus.message }}
+                        </span>
+                    </div>
                     <div v-if="usageLogs.length === 0" class="loading">暂无记录</div>
                     <table v-else>
                         <thead>
@@ -322,7 +330,8 @@
                     showAddOtherItemForm: false,
                     newOtherItem: { name: '', quantity: 0 },
                     editingOtherItemId: null,
-                    editingOtherItemQty: 0
+                    editingOtherItemQty: 0,
+                    importStatus: null
                 };
             },
             mounted() {
@@ -567,6 +576,122 @@
                         }
                     } catch (error) {
                         this.showAlert('error', '删除失败：' + error.message);
+                    }
+                },
+                exportUsageLogs() {
+                    if (this.usageLogs.length === 0) {
+                        this.showAlert('error', '没有记录可导出');
+                        return;
+                    }
+
+                    // CSV 头部
+                    const headers = ['姓名', '物品类型', '款式', '尺寸', '物品名称', '数量', '备注', '时间'];
+                    let csv = headers.join(',') + '\n';
+
+                    // 数据行
+                    this.usageLogs.forEach(log => {
+                        const row = [
+                            log.user_name,
+                            log.item_type === 'clothing' ? '衣服' : '其它',
+                            log.style_name || '',
+                            log.size_name || '',
+                            log.other_item_name || '',
+                            log.quantity,
+                            log.remark || '',
+                            log.created_at
+                        ];
+                        csv += row.map(cell => `"${cell}"`).join(',') + '\n';
+                    });
+
+                    // 下载文件
+                    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+                    const link = document.createElement('a');
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', `使用记录_${new Date().toISOString().slice(0,10)}.csv`);
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+
+                    this.showAlert('success', `已导出 ${this.usageLogs.length} 条记录`);
+                },
+                async importUsageLogs(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+
+                    this.importStatus = { type: 'info', message: '正在导入...' };
+
+                    try {
+                        const text = await file.text();
+                        const lines = text.split('\n').filter(line => line.trim());
+                        
+                        if (lines.length < 2) {
+                            this.importStatus = { type: 'error', message: 'CSV 文件为空' };
+                            return;
+                        }
+
+                        // 跳过头部
+                        const dataLines = lines.slice(1);
+                        let successCount = 0;
+                        let errorCount = 0;
+
+                        for (const line of dataLines) {
+                            // 解析 CSV 行（处理引号）
+                            const matches = line.match(/"([^"]*)"|([^,]+)/g);
+                            if (!matches || matches.length < 6) continue;
+
+                            const values = matches.map(v => v.replace(/^"|"$/g, '').trim());
+                            const [userName, itemTypeText, style, size, otherItemName, quantity, remark] = values;
+
+                            if (!userName || !quantity) {
+                                errorCount++;
+                                continue;
+                            }
+
+                            const itemType = itemTypeText === '衣服' ? 'clothing' : 'other';
+                            
+                            try {
+                                const res = await fetch('/api/usage/add', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        user: userName,
+                                        itemType: itemType,
+                                        style: style || undefined,
+                                        size: size || undefined,
+                                        otherItemName: otherItemName || undefined,
+                                        qty: parseInt(quantity) || 1,
+                                        remark: remark || undefined
+                                    })
+                                });
+                                const data = await res.json();
+                                if (data.success) {
+                                    successCount++;
+                                } else {
+                                    errorCount++;
+                                }
+                            } catch (error) {
+                                errorCount++;
+                            }
+                        }
+
+                        this.importStatus = { 
+                            type: errorCount === 0 ? 'success' : 'error', 
+                            message: `导入完成：成功 ${successCount} 条，失败 ${errorCount} 条` 
+                        };
+
+                        // 刷新数据
+                        await this.loadUsageLogs();
+                        await this.loadDashboard();
+
+                        // 清空文件输入
+                        event.target.value = '';
+
+                        // 3秒后清除状态
+                        setTimeout(() => { this.importStatus = null; }, 3000);
+                    } catch (error) {
+                        this.importStatus = { type: 'error', message: '导入失败：' + error.message };
                     }
                 },
                 showAlert(type, message) {
