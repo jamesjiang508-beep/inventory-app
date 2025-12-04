@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -202,6 +202,7 @@
                                 <th>数量</th>
                                 <th>备注</th>
                                 <th>时间</th>
+                                <th>操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -213,6 +214,9 @@
                                 <td>{{ log.quantity }}</td>
                                 <td>{{ log.remark || '-' }}</td>
                                 <td style="color:#999; font-size:12px;">{{ log.created_at }}</td>
+                                <td>
+                                    <button @click="deleteUsageLog(log.id)" class="btn-danger" style="font-size:12px; padding:4px 10px;">删除</button>
+                                </td>
                             </tr>
                         </tbody>
                     </table>
@@ -545,6 +549,24 @@
                         await this.loadDashboard();
                     } catch (error) {
                         this.showAlert('error', '保存失败：' + error.message);
+                    }
+                },
+                async deleteUsageLog(logId) {
+                    if (!confirm('确定要删除这条使用记录吗？')) return;
+
+                    try {
+                        const res = await fetch(`/api/usage/logs/${logId}`, { method: 'DELETE' });
+                        const data = await res.json();
+
+                        if (data.success) {
+                            this.showAlert('success', '使用记录已删除！');
+                            await this.loadUsageLogs();
+                            await this.loadDashboard();  // 实时更新剩余总表
+                        } else {
+                            this.showAlert('error', '删除失败：' + data.error);
+                        }
+                    } catch (error) {
+                        this.showAlert('error', '删除失败：' + error.message);
                     }
                 },
                 showAlert(type, message) {
