@@ -603,8 +603,18 @@
                         csv += row.map(cell => `"${cell}"`).join(',') + '\n';
                     });
 
-                    // 下载文件
-                    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+
+                    // 下载文件（使用 UTF-16 LE 编码，Excel 兼容性更好）
+                    const bom = new Uint8Array([0xFF, 0xFE]); // UTF-16 LE BOM
+                    
+                    // 转换为 UTF-16 LE
+                    let utf16 = '';
+                    for (let i = 0; i < csv.length; i++) {
+                        const code = csv.charCodeAt(i);
+                        utf16 += String.fromCharCode(code & 0xFF, (code >> 8) & 0xFF);
+                    }
+                    
+                    const blob = new Blob([bom, utf16], { type: 'text/csv;charset=UTF-16LE;' });
                     const link = document.createElement('a');
                     const url = URL.createObjectURL(blob);
                     link.setAttribute('href', url);
