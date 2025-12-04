@@ -1,0 +1,24 @@
+{
+  "name": "inventory-app",
+  "version": "1.0.0",
+  "description": "衣服库存管理系统 - 轻量级库存和使用记录管理",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "inventory",
+    "management",
+    "sqlite",
+    "vue3",
+    "express"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "sql.js": "^1.10.3",
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
+  }
+}

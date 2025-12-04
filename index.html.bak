@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>衣服库存管理系统</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Microsoft YaHei", "PingFang SC", -apple-system,
+          BlinkMacSystemFont, sans-serif;
+        background: #ffffff;
+        min-height: 100vh;
+        padding: 15px;
+      }
+
+      #app {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      .header {
+        text-align: center;
+        color: #2c3e50;
+        margin-bottom: 25px;
+      }
+
+      .header h1 {
+        font-size: 2em;
+        margin-bottom: 8px;
+        font-weight: 600;
+      }
+
+      .header p {
+        font-size: 0.95em;
+        color: #7f8c8d;
+      }
+
+      .container {
+        background: white;
+        border-radius: 12px;
+        border: 1px solid #e8e8e8;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+      }
+
+      .tabs {
+        display: flex;
+        background: #fafafa;
+        border-bottom: 1px solid #e8e8e8;
+      }
+
+      .tab {
+        flex: 1;
+        padding: 16px 20px;
+        text-align: center;
+        cursor: pointer;
+        font-size: 15px;
+        font-weight: 500;
+        color: #666;
+        transition: all 0.2s ease;
+        position: relative;
+      }
+
+      .tab:hover {
+        background: #f5f5f5;
+        color: #333;
+      }
+
+      .tab.active {
+        background: white;
+        color: #1890ff;
+      }
+
+      .tab.active::after {
+        content: "";
+        position: absolute;
+        bottom: -1px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: #1890ff;
+      }
+
+      .tab-content {
+        padding: 20px;
+      }
+
+      .section-title {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        color: #333;
+        border-left: 3px solid #1890ff;
+        padding-left: 10px;
+      }
+
+      /* 表格样式 */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      thead {
+        background: #f5f5f5;
+        color: #333;
+        border-bottom: 1px solid #e8e8e8;
+      }
+
+      th {
+        padding: 12px 10px;
+        text-align: center;
+        font-weight: 600;
+        font-size: 13px;
+      }
+
+      td {
+        padding: 10px 8px;
+        text-align: center;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 14px;
+      }
+
+      tbody tr:hover {
+        background: #fafafa;
+      }
+
+      tbody tr:last-child td {
+        border-bottom: none;
+      }
+
+      /* 库存数量显示样式 */
+      .stock-init {
+        color: #52c41a;
+        font-weight: 600;
+      }
+
+      .stock-remain {
+        color: #1890ff;
+        font-weight: 500;
+      }
+
+      .stock-deficit {
+        color: #ff4d4f;
+        font-weight: 600;
+      }
+
+      .empty-cell {
+        color: #d9d9d9;
+      }
+
+      /* 表单样式 */
+      .form-group {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        align-items: flex-end;
+      }
+
+      .form-item {
+        flex: 1;
+        min-width: 150px;
+      }
+
+      .form-item label {
+        display: block;
+        margin-bottom: 8px;
+        color: #606266;
+        font-weight: 500;
+        font-size: 14px;
+      }
+
+      input[type="text"],
+      input[type="number"],
+      select {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid #dcdfe6;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: all 0.3s;
+        background: white;
+      }
+
+      input:focus,
+      select:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+
+      button {
+        padding: 10px 24px;
+        background: #1890ff;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.2s;
+      }
+
+      button:hover {
+        background: #40a9ff;
+      }
+
+      button:active {
+        background: #096dd9;
+      }
+
+      .btn-secondary {
+        background: #52c41a;
+      }
+
+      .btn-secondary:hover {
+        background: #73d13d;
+      }
+
+      /* 编辑模式样式 */
+      .edit-mode-toggle {
+        margin-bottom: 20px;
+      }
+
+      .stock-input {
+        width: 70px;
+        padding: 6px;
+        text-align: center;
+        border: 1px solid #dcdfe6;
+        border-radius: 4px;
+      }
+
+      .stock-input:focus {
+        border-color: #667eea;
+        outline: none;
+      }
+
+      /* 使用记录列表 */
+      .log-list {
+        max-height: 500px;
+        overflow-y: auto;
+      }
+
+      .log-item {
+        padding: 12px;
+        border-bottom: 1px solid #ebeef5;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .log-item:hover {
+        background: #f5f7fa;
+      }
+
+      .log-time {
+        color: #909399;
+        font-size: 13px;
+      }
+
+      /* 响应式 */
+      @media (max-width: 768px) {
+        body {
+          padding: 10px;
+        }
+
+        .header h1 {
+          font-size: 1.5em;
+        }
+
+        .header p {
+          font-size: 0.85em;
+        }
+
+        .tab-content {
+          padding: 15px;
+        }
+
+        .form-group {
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .form-item {
+          width: 100%;
+          min-width: auto;
+        }
+
+        .tabs {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        .tab {
+          padding: 12px 16px;
+          font-size: 14px;
+          white-space: nowrap;
+        }
+
+        table {
+          font-size: 12px;
+        }
+
+        th, td {
+          padding: 8px 6px;
+        }
+
+        .section-title {
+          font-size: 16px;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .header h1 {
+          font-size: 1.3em;
+        }
+
+        th, td {
+          padding: 6px 4px;
+          font-size: 11px;
+        }
+
+        button {
+          padding: 8px 16px;
+          font-size: 13px;
+        }
+      }
+
+      /* 加载动画 */
+      .loading {
+        text-align: center;
+        padding: 40px;
+        color: #909399;
+      }
+
+      .spinner {
+        display: inline-block;
+        width: 40px;
+        height: 40px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #667eea;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .alert {
+        padding: 12px 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        animation: fadeIn 0.3s;
+      }
+
+      .alert-success {
+        background: #f0f9ff;
+        color: #0c5460;
+        border: 1px solid #bee5eb;
+      }
+
+      .alert-error {
+        background: #fff5f5;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div class="header">
+        <h1>👔 衣服库存管理系统</h1>
+        <p>轻量级库存管理与使用记录追踪</p>
+      </div>
+
+      <div class="container">
+        <!-- Tab 导航 -->
+        <div class="tabs">
+          <div
+            class="tab"
+            :class="{active: activeTab === 'dashboard'}"
+            @click="activeTab = 'dashboard'"
+          >
+            📊 剩余总表预览
+          </div>
+          <div
+            class="tab"
+            :class="{active: activeTab === 'usage'}"
+            @click="activeTab = 'usage'"
+          >
+            📝 使用记录详细
+          </div>
+          <div
+            class="tab"
+            :class="{active: activeTab === 'stock'}"
+            @click="activeTab = 'stock'"
+          >
+            📦 库存总表预览
+          </div>
+        </div>
+
+        <!-- Tab 内容 -->
+        <div class="tab-content">
+          <!-- Alert 消息 -->
+          <div
+            v-if="alert.show"
+            :class="['alert', alert.type === 'success' ? 'alert-success' : 'alert-error']"
+          >
+            {{ alert.message }}
+          </div>
+
+          <!-- Tab 1: 剩余总表预览 -->
+          <div v-show="activeTab === 'dashboard'">
+            <h2 class="section-title">剩余总表预览（核心功能）</h2>
+            <div v-if="loading" class="loading">
+              <div class="spinner"></div>
+              <p>加载中...</p>
+            </div>
+            <table v-else>
+              <thead>
+                <tr>
+                  <th>款式/尺寸</th>
+                  <th v-for="size in dashboardData.sizes" :key="size">
+                    {{ size }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+          <!-- Tab 2: 使用记录详细 -->
+          <div v-show="activeTab === 'usage'">
+            <h2 class="section-title">添加使用记录</h2>
+            <div class="form-group">
+              <div class="form-item">
+                <label>使用人姓名</label>
+                <input
+                  type="text"
+                  v-model="usageForm.user"
+                  placeholder="请输入姓名"
+                />
+              </div>
+              <div class="form-item">
+                <label>款式</label>
+                <select v-model="usageForm.style">
+                  <option value="">请选择款式</option>
+                  <option
+                    v-for="style in stylesList"
+                    :key="style"
+                    :value="style"
+                  >
+                    {{ style }}
+                  </option>
+                </select>
+              </div>
+              <div class="form-item">
+                <label>尺寸</label>
+                <select v-model="usageForm.size">
+                  <option value="">请选择尺寸</option>
+                  <option v-for="size in sizesList" :key="size" :value="size">
+                    {{ size }}
+                  </option>
+                </select>
+              </div>
+              <div class="form-item">
+                <label>数量</label>
+                <input
+                  type="number"
+                  v-model="usageForm.qty"
+                  min="1"
+                  value="1"
+                />
+              </div>
+              <div class="form-item">
+                <label>&nbsp;</label>
+                <button @click="addUsageLog">➕ 添加记录</button>
+              </div>
+            </div>
+
+            <h2 class="section-title">使用流水列表</h2>
+            <div class="log-list">
+              <div v-if="usageLogs.length === 0" class="loading">
+                <p>暂无使用记录</p>
+              </div>
+              <div v-else>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>时间</th>
+                      <th>使用人</th>
+                      <th>款式</th>
+                      <th>尺寸</th>
+                      <th>数量</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="log in usageLogs" :key="log.id">
+                      <td class="log-time">{{ log.created_at }}</td>
+                      <td>{{ log.user_name }}</td>
+                      <td>{{ log.style_name }}</td>
+                      <td>{{ log.size_name }}</td>
+                      <td>{{ log.quantity }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 3: 库存总表预览 -->
+          <div v-show="activeTab === 'stock'">
+            <h2 class="section-title">初始库存设置</h2>
+            <div class="edit-mode-toggle">
+              <button @click="editMode = !editMode" class="btn-secondary">
+                {{ editMode ? '🔒 锁定编辑' : '✏️ 进入编辑' }}
+              </button>
+              <button
+                v-if="editMode"
+                @click="saveAllStock"
+                style="margin-left: 10px"
+              >
+                💾 保存所有修改
+              </button>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>款式/尺寸</th>
+                  <th v-for="size in stockData.sizes" :key="size">
+                    {{ size }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="style in stockData.styles" :key="style">
+                  <td><strong>{{ style }}</strong></td>
+                  <td v-for="size in stockData.sizes" :key="size">
+                    <input
+                      v-if="editMode"
+                      type="number"
+                      class="stock-input"
+                      v-model.number="getStockValue(style, size)"
+                      @change="updateStock(style, size, $event)"
+                      min="0"
+                    />
+                    <span v-else>
+                      {{ stockData.matrix[style] &&
+                      stockData.matrix[style][size] ?
+                      stockData.matrix[style][size] : 0 }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const { createApp } = Vue;
+
+      createApp({
+        data() {
+          return {
+            activeTab: "dashboard",
+            loading: false,
+            editMode: false,
+            alert: {
+              show: false,
+              type: "success",
+              message: "",
+            },
+            // 剩余总表数据
+            dashboardData: {
+              matrix: {},
+              styles: [],
+              sizes: [],
+            },
+            // 库存数据
+            stockData: {
+              matrix: {},
+              styles: [],
+              sizes: [],
+            },
+            // 款式和尺寸列表
+            stylesList: [],
+            sizesList: [],
+            // 使用记录表单
+            usageForm: {
+              user: "",
+              style: "",
+              size: "",
+              qty: 1,
+            },
+            // 使用流水列表
+            usageLogs: [],
+            // 待保存的库存修改
+            stockChanges: {},
+          };
+        },
+        mounted() {
+          this.init();
+        },
+        methods: {
+          async init() {
+            await this.loadStyles();
+            await this.loadSizes();
+            await this.loadDashboard();
+            await this.loadStockInit();
+            await this.loadUsageLogs();
+          },
+          // 加载款式列表
+          async loadStyles() {
+            try {
+              const res = await fetch("/api/styles");
+              const data = await res.json();
+              if (data.success) {
+                this.stylesList = data.styles.map((s) => s.name);
+              }
+            } catch (error) {
+              console.error("加载款式失败:", error);
+            }
+          },
+          // 加载尺寸列表
+          async loadSizes() {
+            try {
+              const res = await fetch("/api/sizes");
+              const data = await res.json();
+              if (data.success) {
+                this.sizesList = data.sizes.map((s) => s.name);
+              }
+            } catch (error) {
+              console.error("加载尺寸失败:", error);
+            }
+          },
+          // 加载剩余总表数据
+          async loadDashboard() {
+            this.loading = true;
+            try {
+              const res = await fetch("/api/stock/dashboard");
+              const data = await res.json();
+              if (data.success) {
+                this.dashboardData = data;
+              }
+            } catch (error) {
+              console.error("加载剩余总表失败:", error);
+            } finally {
+              this.loading = false;
+            }
+          },
+          // 加载初始库存
+          async loadStockInit() {
+            try {
+              const res = await fetch("/api/stock/init");
+              const data = await res.json();
+              if (data.success) {
+                this.stockData = data;
+              }
+            } catch (error) {
+              console.error("加载库存数据失败:", error);
+            }
+          },
+          // 加载使用流水
+          async loadUsageLogs() {
+            try {
+              const res = await fetch("/api/usage/logs");
+              const data = await res.json();
+              if (data.success) {
+                this.usageLogs = data.logs;
+              }
+            } catch (error) {
+              console.error("加载使用记录失败:", error);
+            }
+          },
+          // 添加使用记录
+          async addUsageLog() {
+            if (
+              !this.usageForm.user ||
+              !this.usageForm.style ||
+              !this.usageForm.size
+            ) {
+              this.showAlert("error", "请填写完整信息！");
+              return;
+            }
+
+            try {
+              const res = await fetch("/api/usage/add", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  user: this.usageForm.user,
+                  style: this.usageForm.style,
+                  size: this.usageForm.size,
+                  qty: this.usageForm.qty,
+                }),
+              });
+              const data = await res.json();
+
+              if (data.success) {
+                this.showAlert("success", "使用记录已添加！");
+                this.usageForm = { user: "", style: "", size: "", qty: 1 };
+                await this.loadUsageLogs();
+                await this.loadDashboard();
+              } else {
+                this.showAlert("error", "添加失败：" + data.error);
+              }
+            } catch (error) {
+              this.showAlert("error", "添加失败：" + error.message);
+            }
+          },
+          // 获取库存值
+          getStockValue(style, size) {
+            if (!this.stockData.matrix[style]) {
+              this.$set(this.stockData.matrix, style, {});
+            }
+            return this.stockData.matrix[style][size] || 0;
+          },
+          // 更新库存（暂存）
+          updateStock(style, size, event) {
+            const value = parseInt(event.target.value) || 0;
+            if (!this.stockData.matrix[style]) {
+              this.stockData.matrix[style] = {};
+            }
+            this.stockData.matrix[style][size] = value;
+
+            // 记录修改
+            const key = `${style}_${size}`;
+            this.stockChanges[key] = { style, size, qty: value };
+          },
+          // 保存所有库存修改
+          async saveAllStock() {
+            const changes = Object.values(this.stockChanges);
+            if (changes.length === 0) {
+              this.showAlert("error", "没有修改需要保存");
+              return;
+            }
+
+            try {
+              for (const change of changes) {
+                await fetch("/api/stock/init", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(change),
+                });
+              }
+
+              this.showAlert("success", `已保存 ${changes.length} 项修改！`);
+              this.stockChanges = {};
+              this.editMode = false;
+              await this.loadStockInit();
+              await this.loadDashboard();
+            } catch (error) {
+              this.showAlert("error", "保存失败：" + error.message);
+            }
+          },
+          // 显示提示消息
+          showAlert(type, message) {
+            this.alert = { show: true, type, message };
+            setTimeout(() => {
+              this.alert.show = false;
+            }, 3000);
+          },
+        },
+      }).mount("#app");
+    </script>
+  </body>
+</html>

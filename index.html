@@ -1,0 +1,558 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>库存管理系统</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; background: #fff; min-height: 100vh; padding: 15px; }
+        #app { max-width: 1200px; margin: 0 auto; }
+        .header { text-align: center; color: #2c3e50; margin-bottom: 25px; }
+        .header h1 { font-size: 2em; margin-bottom: 8px; font-weight: 600; }
+        .header p { font-size: 0.95em; color: #7f8c8d; }
+        .container { background: white; border-radius: 12px; border: 1px solid #e8e8e8; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow: hidden; }
+        .tabs { display: flex; background: #fafafa; border-bottom: 1px solid #e8e8e8; }
+        .tab { flex: 1; padding: 16px 20px; text-align: center; cursor: pointer; font-size: 15px; font-weight: 500; color: #666; transition: all 0.2s; }
+        .tab:hover { background: #f5f5f5; color: #333; }
+        .tab.active { background: white; color: #1890ff; border-bottom: 2px solid #1890ff; }
+        .tab-content { padding: 20px; }
+        .section-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #333; border-left: 3px solid #1890ff; padding-left: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; border: 1px solid #f0f0f0; }
+        thead { background: #f5f5f5; color: #333; }
+        th { padding: 12px 10px; text-align: center; font-weight: 600; font-size: 13px; border-bottom: 1px solid #e8e8e8; }
+        td { padding: 10px 8px; text-align: center; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+        tbody tr:hover { background: #fafafa; }
+       .stock-init { color: #52c41a; font-weight: 600; }
+        .stock-remain { color: #1890ff; font-weight: 500; }
+        .stock-deficit { color: #ff4d4f; font-weight: 600; }
+        .empty-cell { color: #d9d9d9; }
+        .form-group { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; align-items: flex-end; }
+        .form-item { flex: 1; min-width: 150px; }
+        .form-item label { display: block; margin-bottom: 8px; color: #606266; font-weight: 500; font-size: 14px; }
+        input[type="text"], input[type="number"], select { width: 100%; padding: 10px 12px; border: 1px solid #dcdfe6; border-radius: 6px; font-size: 14px; transition: all 0.3s; }
+        input:focus, select:focus { outline: none; border-color: #1890ff; }
+        button { padding: 10px 24px; background: #1890ff; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s; }
+        button:hover { background: #40a9ff; }
+        .btn-secondary { background: #52c41a; }
+        .btn-secondary:hover { background: #73d13d; }
+        .btn-danger { background: #ff4d4f; }
+        .btn-danger:hover { background: #ff7875; }
+        .stock-input { width: 70px; padding: 6px; text-align: center; border: 1px solid #dcdfe6; border-radius: 4px; }
+        .loading { text-align: center; padding: 40px; color: #909399; }
+        .alert { padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; animation: fadeIn 0.3s; }
+        .alert-success { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
+        .alert-error { background: #fff2f0; color: #ff4d4f; border: 1px solid #ffccc7; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .item-type-switch { display: flex; gap: 15px; margin-bottom: 15px; }
+        .type-option { padding: 8px 20px; border: 1px solid #d9d9d9; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+        .type-option:hover { border-color: #1890ff; }
+        .type-option.active { background: #1890ff; color: white; border-color: #1890ff; }
+        .section-block { margin-top: 30px; padding: 20px; background: #fafafa; border-radius: 8px; border: 1px solid #e8e8e8; }
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .header h1 { font-size: 1.5em; }
+            .tab-content { padding: 15px; }
+            .form-group { flex-direction: column; gap: 12px; }
+            .form-item { width: 100%; min-width: auto; }
+            .tabs { overflow-x: auto; }
+            .tab { padding: 12px 16px; font-size: 14px; white-space: nowrap; }
+            table { font-size: 12px; }
+            th, td { padding: 8px 6px; }
+        }
+        @media (max-width: 480px) {
+            .header h1 { font-size: 1.3em; }
+            th, td { padding: 6px 4px; font-size: 11px; }
+            button { padding: 8px 16px; font-size: 13px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="header">
+            <h1>👔 库存管理系统</h1>
+            <p>轻量级库存管理与使用记录追踪</p>
+        </div>
+
+        <div class="container">
+            <div class="tabs">
+                <div class="tab" :class="{active: activeTab === 'dashboard'}" @click="activeTab = 'dashboard'">📊 剩余总表</div>
+                <div class="tab" :class="{active: activeTab === 'usage'}" @click="activeTab = 'usage'">📝 使用记录</div>
+                <div class="tab" :class="{active: activeTab === 'stock'}" @click="activeTab = 'stock'">📦 库存设置</div>
+            </div>
+
+            <div class="tab-content">
+                <div v-if="alert.show" :class="['alert', alert.type === 'success' ? 'alert-success' : 'alert-error']">{{ alert.message }}</div>
+
+                <!-- Tab 1: 剩余总表 -->
+                <div v-show="activeTab === 'dashboard'">
+                    <h2 class="section-title">衣服库存</h2>
+                    <div v-if="loading" class="loading">加载中...</div>
+                    <table v-else>
+                        <thead>
+                            <tr>
+                                <th>款式/尺寸</th>
+                                <th v-for="size in dashboardData.clothing?.sizes" :key="size">{{ size }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="style in dashboardData.clothing?.styles" :key="style">
+                                <td><strong>{{ style }}</strong></td>
+                                <td v-for="size in dashboardData.clothing?.sizes" :key="size">
+                                    <span v-if="dashboardData.clothing.matrix[style] && dashboardData.clothing.matrix[style][size]">
+                                        <span class="stock-init">{{ dashboardData.clothing.matrix[style][size].init }}</span>
+                                        <span> / </span>
+                                        <span :class="dashboardData.clothing.matrix[style][size].remain < 0 ? 'stock-deficit' : 'stock-remain'">
+                                            {{ dashboardData.clothing.matrix[style][size].remain >= 0 ? '余' : '欠' }}{{ Math.abs(dashboardData.clothing.matrix[style][size].remain) }}
+                                        </span>
+                                    </span>
+                                    <span v-else class="empty-cell">-</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="section-block">
+                        <h2 class="section-title">其它物品</h2>
+                        <div v-if="!dashboardData.otherItems || dashboardData.otherItems.length === 0" class="loading">暂无其它物品</div>
+                        <table v-else>
+                            <thead>
+                                <tr>
+                                    <th>物品名称</th>
+                                    <th>数量</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="item in dashboardData.otherItems" :key="item.id">
+                                    <td><strong>{{ item.name }}</strong></td>
+                                    <td>
+                                        <span class="stock-init">{{ item.init }}</span>
+                                        <span> / </span>
+                                        <span :class="item.remain < 0 ? 'stock-deficit' : 'stock-remain'">
+                                            {{ item.remain >= 0 ? '余' : '欠' }}{{ Math.abs(item.remain) }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tab 2: 使用记录 -->
+                <div v-show="activeTab === 'usage'">
+                    <h2 class="section-title">添加使用记录</h2>
+                    <div class="item-type-switch">
+                        <div class="type-option" :class="{active: usageForm.itemType === 'clothing'}" @click="usageForm.itemType = 'clothing'">衣服</div>
+                        <div class="type-option" :class="{active: usageForm.itemType === 'other'}" @click="usageForm.itemType = 'other'">其它物品</div>
+                    </div>
+                    <div class="form-group">
+                        <div class="form-item">
+                            <label>姓名</label>
+                            <input type="text" v-model="usageForm.user" placeholder="请输入姓名">
+                        </div>
+                        <template v-if="usageForm.itemType === 'clothing'">
+                            <div class="form-item">
+                                <label>款式</label>
+                                <select v-model="usageForm.style">
+                                    <option value="">请选择</option>
+                                    <option v-for="style in stylesList" :key="style" :value="style">{{ style }}</option>
+                                </select>
+                            </div>
+                            <div class="form-item">
+                                <label>尺寸</label>
+                                <select v-model="usageForm.size">
+                                    <option value="">请选择</option>
+                                    <option v-for="size in sizesList" :key="size" :value="size">{{ size }}</option>
+                                </select>
+                            </div>
+                        </template>
+                        <template v-else>
+                            <div class="form-item">
+                                <label>物品名称</label>
+                                <select v-model="usageForm.otherItemName">
+                                    <option value="">请选择</option>
+                                    <option v-for="item in otherItemsList" :key="item.id" :value="item.name">{{ item.name }}</option>
+                                </select>
+                            </div>
+                        </template>
+                        <div class="form-item">
+                            <label>数量</label>
+                            <input type="number" v-model="usageForm.qty" min="1" value="1">
+                        </div>
+                        <div class="form-item">
+                            <label>备注</label>
+                            <input type="text" v-model="usageForm.remark" placeholder="可选">
+                        </div>
+                        <div class="form-item">
+                            <label>&nbsp;</label>
+                            <button @click="addUsageLog">➕ 添加</button>
+                        </div>
+                    </div>
+
+                    <h2 class="section-title">使用流水</h2>
+                    <div v-if="usageLogs.length === 0" class="loading">暂无记录</div>
+                    <table v-else>
+                        <thead>
+                            <tr>
+                                <th>姓名</th>
+                                <th>物品类型</th>
+                                <th>款式</th>
+                                <th>尺寸</th>
+                                <th>数量</th>
+                                <th>备注</th>
+                                <th>时间</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="log in usageLogs" :key="log.id">
+                                <td>{{ log.user_name }}</td>
+                                <td>{{ log.item_type === 'clothing' ? '衣服' : log.other_item_name }}</td>
+                                <td>{{ log.style_name || '-' }}</td>
+                                <td>{{ log.size_name || '-' }}</td>
+                                <td>{{ log.quantity }}</td>
+                                <td>{{ log.remark || '-' }}</td>
+                                <td style="color:#999; font-size:12px;">{{ log.created_at }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Tab 3: 库存设置 -->
+                <div v-show="activeTab === 'stock'">
+                    <h2 class="section-title">衣服初始库存</h2>
+                    <div style="margin-bottom:20px;">
+                        <button @click="editMode = !editMode" class="btn-secondary">{{ editMode ? '🔒 锁定' : '✏️ 编辑' }}</button>
+                        <button v-if="editMode" @click="saveAllStock" style="margin-left:10px;">💾 保存</button>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>款式/尺寸</th>
+                                <th v-for="size in stockData.sizes" :key="size">{{ size }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="style in stockData.styles" :key="style">
+                                <td><strong>{{ style }}</strong></td>
+                                <td v-for="size in stockData.sizes" :key="size">
+                                    <input v-if="editMode" type="number" class="stock-input" v-model.number="getStockValue(style, size)" @change="updateStock(style, size, $event)" min="0">
+                                    <span v-else>{{ stockData.matrix[style] && stockData.matrix[style][size] ? stockData.matrix[style][size] : 0 }}</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="section-block">
+                        <h2 class="section-title">其它物品管理</h2>
+                        <div style="margin-bottom:15px;">
+                            <button @click="showAddOtherItemForm = !showAddOtherItemForm">{{ showAddOtherItemForm ? '取消' : '➕ 添加物品' }}</button>
+                        </div>
+                        <div v-if="showAddOtherItemForm" class="form-group" style="margin-bottom:20px;">
+                            <div class="form-item">
+                                <label>物品名称</label>
+                                <input type="text" v-model="newOtherItem.name" placeholder="请输入物品名称">
+                            </div>
+                            <div class="form-item">
+                                <label>初始数量</label>
+                                <input type="number" v-model="newOtherItem.quantity" min="0" value="0">
+                            </div>
+                            <div class="form-item">
+                                <label>&nbsp;</label>
+                                <button @click="addOtherItem">保存物品</button>
+                            </div>
+                        </div>
+                        <div v-if="otherItemsList.length === 0" class="loading">暂无其它物品</div>
+                        <table v-else>
+                            <thead>
+                                <tr>
+                                    <th>物品名称</th>
+                                    <th>初始数量</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="item in otherItemsList" :key="item.id">
+                                    <td><strong>{{ item.name }}</strong></td>
+                                    <td>
+                                        <input v-if="editingOtherItemId === item.id" type="number" v-model.number="editingOtherItemQty" class="stock-input" min="0">
+                                        <span v-else>{{ item.initial_quantity }}</span>
+                                    </td>
+                                    <td>
+                                        <template v-if="editingOtherItemId === item.id">
+                                            <button @click="saveOtherItemQty(item.id)" style="font-size:12px;">保存</button>
+                                            <button @click="editingOtherItemId = null" style="font-size:12px; margin-left:5px;">取消</button>
+                                        </template>
+                                        <template v-else>
+                                            <button @click="startEditOtherItem(item)" style="font-size:12px;">编辑</button>
+                                            <button @click="deleteOtherItem(item.id)" class="btn-danger" style="font-size:12px; margin-left:5px;">删除</button>
+                                        </template>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    activeTab: 'dashboard',
+                    loading: false,
+                    editMode: false,
+                    alert: { show: false, type: 'success', message: '' },
+                    dashboardData: { clothing: { matrix: {}, styles: [], sizes: [] }, otherItems: [] },
+                    stockData: { matrix: {}, styles: [], sizes: [] },
+                    stylesList: [],
+                    sizesList: [],
+                    otherItemsList: [],
+                    usageForm: { user: '', itemType: 'clothing', style: '', size: '', otherItemName: '', qty: 1, remark: '' },
+                    usageLogs: [],
+                    stockChanges: {},
+                    showAddOtherItemForm: false,
+                    newOtherItem: { name: '', quantity: 0 },
+                    editingOtherItemId: null,
+                    editingOtherItemQty: 0
+                };
+            },
+            mounted() {
+                this.init();
+            },
+            methods: {
+                async init() {
+                    await this.loadStyles();
+                    await this.loadSizes();
+                    await this.loadOtherItems();
+                    await this.loadDashboard();
+                    await this.loadStockInit();
+                    await this.loadUsageLogs();
+                },
+                async loadStyles() {
+                    try {
+                        const res = await fetch('/api/styles');
+                        const data = await res.json();
+                        if (data.success) this.stylesList = data.styles.map(s => s.name);
+                    } catch (error) {
+                        console.error('加载款式失败:', error);
+                    }
+                },
+                async loadSizes() {
+                    try {
+                        const res = await fetch('/api/sizes');
+                        const data = await res.json();
+                        if (data.success) this.sizesList = data.sizes.map(s => s.name);
+                    } catch (error) {
+                        console.error('加载尺寸失败:', error);
+                    }
+                },
+                async loadOtherItems() {
+                    try {
+                        const res = await fetch('/api/other-items');
+                        const data = await res.json();
+                        if (data.success) this.otherItemsList = data.items;
+                    } catch (error) {
+                        console.error('加载其它物品失败:', error);
+                    }
+                },
+                async loadDashboard() {
+                    this.loading = true;
+                    try {
+                        const res = await fetch('/api/stock/dashboard');
+                        const data = await res.json();
+                        if (data.success) this.dashboardData = data;
+                    } catch (error) {
+                        console.error('加载失败:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                async loadStockInit() {
+                    try {
+                        const res = await fetch('/api/stock/init');
+                        const data = await res.json();
+                        if (data.success) this.stockData = data;
+                    } catch (error) {
+                        console.error('加载失败:', error);
+                    }
+                },
+                async loadUsageLogs() {
+                    try {
+                        const res = await fetch('/api/usage/logs');
+                        const data = await res.json();
+                        if (data.success) this.usageLogs = data.logs;
+                    } catch (error) {
+                        console.error('加载失败:', error);
+                    }
+                },
+                async addUsageLog() {
+                    if (!this.usageForm.user) {
+                        this.showAlert('error', '请输入姓名！');
+                        return;
+                    }
+
+                    if (this.usageForm.itemType === 'clothing' && (!this.usageForm.style || !this.usageForm.size)) {
+                        this.showAlert('error', '请选择款式和尺寸！');
+                        return;
+                    }
+
+                    if (this.usageForm.itemType === 'other' && !this.usageForm.otherItemName) {
+                        this.showAlert('error', '请选择物品！');
+                        return;
+                    }
+
+                    try {
+                        const res = await fetch('/api/usage/add', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                user: this.usageForm.user,
+                                itemType: this.usageForm.itemType,
+                                style: this.usageForm.style,
+                                size: this.usageForm.size,
+                                otherItemName: this.usageForm.otherItemName,
+                                qty: this.usageForm.qty,
+                                remark: this.usageForm.remark
+                            })
+                        });
+                        const data = await res.json();
+
+                        if (data.success) {
+                            this.showAlert('success', '已添加！');
+                            this.usageForm = { user: '', itemType: 'clothing', style: '', size: '', otherItemName: '', qty: 1, remark: '' };
+                            await this.loadUsageLogs();
+                            await this.loadDashboard();
+                        } else {
+                            this.showAlert('error', '添加失败：' + data.error);
+                        }
+                    } catch (error) {
+                        this.showAlert('error', '添加失败：' + error.message);
+                    }
+                },
+                async addOtherItem() {
+                    if (!this.newOtherItem.name) {
+                        this.showAlert('error', '请输入物品名称！');
+                        return;
+                    }
+
+                    try {
+                        const res = await fetch('/api/other-items', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                name: this.newOtherItem.name,
+                                quantity: this.newOtherItem.quantity
+                            })
+                        });
+                        const data = await res.json();
+
+                        if (data.success) {
+                            this.showAlert('success', '物品已添加！');
+                            this.newOtherItem = { name: '', quantity: 0 };
+                            this.showAddOtherItemForm = false;
+                            await this.loadOtherItems();
+                            await this.loadDashboard();
+                        } else {
+                            this.showAlert('error', '添加失败：' + data.error);
+                        }
+                    } catch (error) {
+                        this.showAlert('error', '添加失败：' + error.message);
+                    }
+                },
+                startEditOtherItem(item) {
+                    this.editingOtherItemId = item.id;
+                    this.editingOtherItemQty = item.initial_quantity;
+                },
+                async saveOtherItemQty(itemId) {
+                    try {
+                        const res = await fetch(`/api/other-items/${itemId}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ quantity: this.editingOtherItemQty })
+                        });
+                        const data = await res.json();
+
+                        if (data.success) {
+                            this.showAlert('success', '库存已更新！');
+                            this.editingOtherItemId = null;
+                            await this.loadOtherItems();
+                            await this.loadDashboard();
+                        } else {
+                            this.showAlert('error', '更新失败：' + data.error);
+                        }
+                    } catch (error) {
+                        this.showAlert('error', '更新失败：' + error.message);
+                    }
+                },
+                async deleteOtherItem(itemId) {
+                    if (!confirm('确定要删除这个物品吗？')) return;
+
+                    try {
+                        const res = await fetch(`/api/other-items/${itemId}`, { method: 'DELETE' });
+                        const data = await res.json();
+
+                        if (data.success) {
+                            this.showAlert('success', '物品已删除！');
+                            await this.loadOtherItems();
+                            await this.loadDashboard();
+                        } else {
+                            this.showAlert('error', '删除失败：' + data.error);
+                        }
+                    } catch (error) {
+                        this.showAlert('error', '删除失败：' + error.message);
+                    }
+                },
+                getStockValue(style, size) {
+                    if (!this.stockData.matrix[style]) {
+                        this.stockData.matrix[style] = {};
+                    }
+                    return this.stockData.matrix[style][size] || 0;
+                },
+                updateStock(style, size, event) {
+                    const value = parseInt(event.target.value) || 0;
+                    if (!this.stockData.matrix[style]) {
+                        this.stockData.matrix[style] = {};
+                    }
+                    this.stockData.matrix[style][size] = value;
+                    const key = `${style}_${size}`;
+                    this.stockChanges[key] = { style, size, qty: value };
+                },
+                async saveAllStock() {
+                    const changes = Object.values(this.stockChanges);
+                    if (changes.length === 0) {
+                        this.showAlert('error', '没有修改');
+                        return;
+                    }
+
+                    try {
+                        for (const change of changes) {
+                            await fetch('/api/stock/init', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(change)
+                            });
+                        }
+
+                        this.showAlert('success', `已保存 ${changes.length} 项！`);
+                        this.stockChanges = {};
+                        this.editMode = false;
+                        await this.loadStockInit();
+                        await this.loadDashboard();
+                    } catch (error) {
+                        this.showAlert('error', '保存失败：' + error.message);
+                    }
+                },
+                showAlert(type, message) {
+                    this.alert = { show: true, type, message };
+                    setTimeout(() => { this.alert.show = false; }, 3000);
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
