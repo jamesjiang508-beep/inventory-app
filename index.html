@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>库存管理系统</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- 编码转换库，支持 GBK/GB2312 等中文编码 -->
+    <script src="https://cdn.jsdelivr.net/npm/encoding-japanese@2.0.0/encoding.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; background: #fff; min-height: 100vh; padding: 15px; }
@@ -624,8 +626,65 @@
                     this.importStatus = { type: 'info', message: '正在导入...' };
 
                     try {
-                        const text = await file.text();
+                        // 读取文件的原始字节
+                        const arrayBuffer = await file.arrayBuffer();
+                        const bytes = new Uint8Array(arrayBuffer);
+                        
+                        console.log('📁 文件大小:', bytes.length, '字节');
+                        console.log('🔍 前20字节:', Array.from(bytes.slice(0, 20)).map(b => b.toString(16).padStart(2, '0')).join(' '));
+                        
+                        let text = '';
+                        let detectedEncoding = 'UNKNOWN';
+                        
+                        // 使用 encoding-japanese 库自动检测编码
+                        if (typeof Encoding !== 'undefined') {
+                            // 检测编码
+                            const detected = Encoding.detect(bytes);
+                            detectedEncoding = detected || 'UTF8';
+                            console.log('🎯 检测到的编码:', detectedEncoding);
+                            
+                            // 转换为 Unicode 数组
+                            const unicodeArray = Encoding.convert(bytes, {
+                                to: 'UNICODE',
+                                from: detectedEncoding
+                            });
+                            
+                            // 转换为字符串
+                            text = Encoding.codeToString(unicodeArray);
+                            console.log('✅ 编码转换成功:', detectedEncoding, '→ UTF-8');
+                        } else {
+                            // 如果库未加载，回退到原生方法
+                            console.warn('⚠️ encoding-japanese 库未加载，使用原生解码');
+                            
+                            // 检测 BOM
+                            let offset = 0;
+                            let encoding = 'UTF-8';
+                            
+                            if (bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
+                                offset = 3;
+                                encoding = 'UTF-8';
+                                detectedEncoding = 'UTF-8 (BOM)';
+                            } else if (bytes.length >= 2 && bytes[0] === 0xFF && bytes[1] === 0xFE) {
+                                offset = 2;
+                                encoding = 'UTF-16LE';
+                                detectedEncoding = 'UTF-16LE';
+                            } else if (bytes.length >= 2 && bytes[0] === 0xFE && bytes[1] === 0xFF) {
+                                offset = 2;
+                                encoding = 'UTF-16BE';
+                                detectedEncoding = 'UTF-16BE';
+                            }
+                            
+                            const decoder = new TextDecoder(encoding);
+                            text = decoder.decode(bytes.slice(offset));
+                        }
+                        
                         const lines = text.split('\n').filter(line => line.trim());
+                        
+                        console.log('📊 总行数:', lines.length);
+                        console.log('📝 前3行内容:');
+                        lines.slice(0, 3).forEach((line, i) => {
+                            console.log(`  行${i + 1}:`, line);
+                        });
                         
                         if (lines.length < 2) {
                             this.importStatus = { type: 'error', message: 'CSV 文件为空' };
@@ -679,7 +738,7 @@
 
                         this.importStatus = { 
                             type: errorCount === 0 ? 'success' : 'error', 
-                            message: `导入完成：成功 ${successCount} 条，失败 ${errorCount} 条` 
+                            message: `导入完成 (${detectedEncoding})：成功 ${successCount} 条，失败 ${errorCount} 条` 
                         };
 
                         // 刷新数据
