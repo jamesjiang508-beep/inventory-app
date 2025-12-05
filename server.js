@@ -408,6 +408,76 @@ app.delete('/api/usage/logs/:id', (req, res) => {
     }
 });
 
+// API-13: 获取使用汇总统计（按姓名分组）
+app.get('/api/usage/summary', (req, res) => {
+    try {
+        // 查询所有用户及其衣服使用总量
+        const clothingResult = db.exec(`
+            SELECT user_name, SUM(quantity) as clothing_total
+            FROM usage_logs
+            WHERE item_type = 'clothing'
+            GROUP BY user_name
+        `);
+
+        // 查询所有用户及其各类物品使用量
+        const itemsResult = db.exec(`
+            SELECT user_name, other_item_name, SUM(quantity) as item_total
+            FROM usage_logs
+            WHERE item_type = 'other'
+            GROUP BY user_name, other_item_name
+        `);
+
+        // 获取所有出现过的物品名称
+        const itemNamesResult = db.exec(`
+            SELECT DISTINCT other_item_name
+            FROM usage_logs
+            WHERE item_type = 'other' AND other_item_name IS NOT NULL
+            ORDER BY other_item_name
+        `);
+
+        // 构建用户汇总数据
+        const userMap = {};
+
+        // 添加衣服数据
+        if (clothingResult[0]) {
+            clothingResult[0].values.forEach(row => {
+                const [userName, total] = row;
+                if (!userMap[userName]) {
+                    userMap[userName] = { user_name: userName, clothing_total: 0, items: {} };
+                }
+                userMap[userName].clothing_total = total;
+            });
+        }
+
+        // 添加物品数据
+        if (itemsResult[0]) {
+            itemsResult[0].values.forEach(row => {
+                const [userName, itemName, total] = row;
+                if (!userMap[userName]) {
+                    userMap[userName] = { user_name: userName, clothing_total: 0, items: {} };
+                }
+                userMap[userName].items[itemName] = total;
+            });
+        }
+
+        // 转换为数组
+        const summary = Object.values(userMap);
+
+        // 获取物品名称列表
+        const itemNames = itemNamesResult[0] 
+            ? itemNamesResult[0].values.map(row => row[0]) 
+            : [];
+
+        res.json({
+            success: true,
+            summary,
+            item_names: itemNames
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // 提供主页
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
