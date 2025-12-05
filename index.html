@@ -26,8 +26,8 @@
         th { padding: 12px 10px; text-align: center; font-weight: 600; font-size: 13px; border-bottom: 1px solid #e8e8e8; }
         td { padding: 10px 8px; text-align: center; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
         tbody tr:hover { background: #fafafa; }
-       .stock-init { color: #52c41a; font-weight: 600; }
-        .stock-remain { color: #1890ff; font-weight: 500; }
+        .stock-init { color: #52c41a; font-weight: 600; }
+        .stock-remain { color: #ff4d4f; font-weight: 600; } /* 余数标红 */
         .stock-deficit { color: #ff4d4f; font-weight: 600; }
         .empty-cell { color: #d9d9d9; }
         .form-group { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; align-items: flex-end; }
@@ -52,6 +52,21 @@
         .type-option:hover { border-color: #1890ff; }
         .type-option.active { background: #1890ff; color: white; border-color: #1890ff; }
         .section-block { margin-top: 30px; padding: 20px; background: #fafafa; border-radius: 8px; border: 1px solid #e8e8e8; }
+        .view-toggle { display: inline-flex; gap: 5px; margin-left: 10px; vertical-align: middle; }
+        .view-toggle-btn { padding: 6px 12px; border: 2px solid #d9d9d9; background: #f5f5f5; color: #666; cursor: pointer; border-radius: 6px; font-size: 14px; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .view-toggle-btn:hover { border-color: #1890ff; background: #e6f7ff; color: #1890ff; transform: translateY(-1px); box-shadow: 0 3px 6px rgba(0,0,0,0.15); }
+        .view-toggle-btn.active { background: #1890ff; color: white; border-color: #1890ff; box-shadow: 0 3px 8px rgba(24,144,255,0.3); }
+        .usage-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-top: 20px; }
+        .usage-card { background: white; border: 1px solid #e8e8e8; border-radius: 8px; padding: 15px; transition: all 0.2s; }
+        .usage-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-color: #1890ff; }
+        .usage-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #f0f0f0; }
+        .usage-card-name { font-size: 16px; font-weight: 600; color: #333; }
+        .usage-card-time { font-size: 11px; color: #999; }
+        .usage-card-body { display: flex; flex-direction: column; gap: 8px; }
+        .usage-card-row { display: flex; justify-content: space-between; font-size: 13px; }
+        .usage-card-label { color: #666; }
+        .usage-card-value { color: #333; font-weight: 500; }
+        .usage-card-footer { margin-top: 12px; padding-top: 10px; border-top: 1px solid #f0f0f0; text-align: right; }
         @media (max-width: 768px) {
             body { padding: 10px; }
             .header h1 { font-size: 1.5em; }
@@ -192,7 +207,13 @@
                         </div>
                     </div>
 
-                    <h2 class="section-title">使用流水</h2>
+                    <h2 class="section-title">
+                        使用流水
+                        <div class="view-toggle">
+                            <button class="view-toggle-btn" :class="{active: usageViewMode === 'list'}" @click="usageViewMode = 'list'" title="列表视图">☰</button>
+                            <button class="view-toggle-btn" :class="{active: usageViewMode === 'grid'}" @click="usageViewMode = 'grid'" title="网格视图">⊞</button>
+                        </div>
+                    </h2>
                     <div style="margin-bottom:15px;">
                         <button @click="exportUsageLogs" class="btn-secondary" style="margin-right:10px;">📄 导出记录</button>
                         <button @click="$refs.importFile.click()" style="margin-right:10px;">📂 导入记录</button>
@@ -202,34 +223,60 @@
                         </span>
                     </div>
                     <div v-if="usageLogs.length === 0" class="loading">暂无记录</div>
-                    <table v-else>
-                        <thead>
-                            <tr>
-                                <th>姓名</th>
-                                <th>物品类型</th>
-                                <th>款式</th>
-                                <th>尺寸</th>
-                                <th>数量</th>
-                                <th>备注</th>
-                                <th>时间</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="log in usageLogs" :key="log.id">
-                                <td>{{ log.user_name }}</td>
-                                <td>{{ log.item_type === 'clothing' ? '衣服' : log.other_item_name }}</td>
-                                <td>{{ log.style_name || '-' }}</td>
-                                <td>{{ log.size_name || '-' }}</td>
-                                <td>{{ log.quantity }}</td>
-                                <td>{{ log.remark || '-' }}</td>
-                                <td style="color:#999; font-size:12px;">{{ log.created_at }}</td>
-                                <td>
-                                    <button @click="deleteUsageLog(log.id)" class="btn-danger" style="font-size:12px; padding:4px 10px;">删除</button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <template v-else>
+                        <!-- 列表视图 -->
+                        <table v-if="usageViewMode === 'list'">
+                            <thead>
+                                <tr>
+                                    <th>姓名</th>
+                                    <th>物品类型</th>
+                                    <th>款式</th>
+                                    <th>尺寸</th>
+                                    <th>数量</th>
+                                    <th>备注</th>
+                                    <th>时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="log in usageLogs" :key="log.id">
+                                    <td>{{ log.user_name }}</td>
+                                    <td>{{ log.item_type === 'clothing' ? '衣服' : log.other_item_name }}</td>
+                                    <td>{{ log.style_name || '-' }}</td>
+                                    <td>{{ log.size_name || '-' }}</td>
+                                    <td>{{ log.quantity }}</td>
+                                    <td>{{ log.remark || '-' }}</td>
+                                    <td style="color:#999; font-size:12px;">{{ log.created_at }}</td>
+                                    <td>
+                                        <button @click="deleteUsageLog(log.id)" class="btn-danger" style="font-size:12px; padding:4px 10px;">删除</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <!-- 网格视图 - 汇总统计表格 -->
+                        <div v-else>
+                            <div v-if="usageSummary.length === 0" class="loading">暂无统计数据</div>
+                            <table v-else>
+                                <thead>
+                                    <tr>
+                                        <th>姓名</th>
+                                        <th>衣服</th>
+                                        <th v-for="itemName in summaryItemNames" :key="itemName">{{ itemName }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="summary in usageSummary" :key="summary.user_name">
+                                        <td><strong>{{ summary.user_name }}</strong></td>
+                                        <td>{{ summary.clothing_total || 0 }}</td>
+                                        <td v-for="itemName in summaryItemNames" :key="itemName">
+                                            {{ summary.items[itemName] || 0 }}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </template>
                 </div>
 
                 <!-- Tab 3: 库存设置 -->
@@ -333,7 +380,10 @@
                     newOtherItem: { name: '', quantity: 0 },
                     editingOtherItemId: null,
                     editingOtherItemQty: 0,
-                    importStatus: null
+                    importStatus: null,
+                    usageViewMode: 'list', // 'list' 或 'grid'
+                    usageSummary: [], // 汇总统计数据
+                    summaryItemNames: [] // 物品名称列表
                 };
             },
             mounted() {
@@ -344,6 +394,7 @@
                     await this.loadStyles();
                     await this.loadSizes();
                     await this.loadOtherItems();
+                    await this.loadUsageSummary();
                     await this.loadDashboard();
                     await this.loadStockInit();
                     await this.loadUsageLogs();
@@ -405,6 +456,18 @@
                         console.error('加载失败:', error);
                     }
                 },
+                async loadUsageSummary() {
+                    try {
+                        const res = await fetch('/api/usage/summary');
+                        const data = await res.json();
+                        if (data.success) {
+                            this.usageSummary = data.summary;
+                            this.summaryItemNames = data.item_names;
+                        }
+                    } catch (error) {
+                        console.error('加载汇总统计失败:', error);
+                    }
+                },
                 async addUsageLog() {
                     if (!this.usageForm.user) {
                         this.showAlert('error', '请输入姓名！');
@@ -442,6 +505,7 @@
                             this.usageForm = { user: '', itemType: 'clothing', style: '', size: '', otherItemName: '', qty: 1, remark: '' };
                             await this.loadUsageLogs();
                             await this.loadDashboard();
+                            await this.loadUsageSummary();
                         } else {
                             this.showAlert('error', '添加失败：' + data.error);
                         }
@@ -573,6 +637,7 @@
                             this.showAlert('success', '使用记录已删除！');
                             await this.loadUsageLogs();
                             await this.loadDashboard();  // 实时更新剩余总表
+                            await this.loadUsageSummary();  // 实时更新汇总统计
                         } else {
                             this.showAlert('error', '删除失败：' + data.error);
                         }
