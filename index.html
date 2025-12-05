@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>库存管理系统</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👔</text></svg>">
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <!-- 编码转换库，支持 GBK/GB2312 等中文编码 -->
-    <script src="https://cdn.jsdelivr.net/npm/encoding-japanese@2.0.0/encoding.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/encoding-japanese@2.0.0/encoding.min.js" onerror="console.warn('encoding-japanese 加载失败，将使用原生编码')"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; background: #fff; min-height: 100vh; padding: 15px; }
@@ -297,7 +298,7 @@
                             <tr v-for="style in stockData.styles" :key="style">
                                 <td><strong>{{ style }}</strong></td>
                                 <td v-for="size in stockData.sizes" :key="size">
-                                    <input v-if="editMode" type="number" class="stock-input" v-model.number="getStockValue(style, size)" @change="updateStock(style, size, $event)" min="0">
+                                    <input v-if="editMode" type="number" class="stock-input" :value="stockData.matrix[style]?.[size] || 0" @input="updateStockInput(style, size, $event)" min="0">
                                     <span v-else>{{ stockData.matrix[style] && stockData.matrix[style][size] ? stockData.matrix[style][size] : 0 }}</span>
                                 </td>
                             </tr>
@@ -592,7 +593,7 @@
                     }
                     return this.stockData.matrix[style][size] || 0;
                 },
-                updateStock(style, size, event) {
+                updateStockInput(style, size, event) {
                     const value = parseInt(event.target.value) || 0;
                     if (!this.stockData.matrix[style]) {
                         this.stockData.matrix[style] = {};
